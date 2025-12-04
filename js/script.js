@@ -169,3 +169,5 @@ function drawChart(data) {
         .style("font-weight", "600")
         .text("Player Name");
 }
+
+//Note: Chatgpt used partially in code generation and mainly in debugging.
