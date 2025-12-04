@@ -1,13 +1,7 @@
-// ----------------------
-// 1. Set margins & size
-// ----------------------
 const margin = { top: 40, right: 40, bottom: 70, left: 230 };
 const width = 900 - margin.left - margin.right;
 const height = 700 - margin.top - margin.bottom;
 
-// ----------------------
-// 2. Create SVG
-// ----------------------
 const svg = d3.select("#chart")
     .append("svg")
     .attr("width", width + margin.left + margin.right)
@@ -15,10 +9,6 @@ const svg = d3.select("#chart")
     .append("g")
     .attr("transform", `translate(${margin.left},${margin.top})`);
 
-
-// ----------------------
-// Tooltip Div (NEW)
-// ----------------------
 const tooltip = d3.select("body")
     .append("div")
     .style("position", "absolute")
@@ -31,9 +21,6 @@ const tooltip = d3.select("body")
     .style("pointer-events", "none");
 
 
-// ----------------------
-// 3. List ALL CSV files
-// ----------------------
 const files = [
     "../Datasets-15-16season/liverpool2015-08-09.csv",
     "../Datasets-15-16season/liverpool2015-08-17.csv",
@@ -76,9 +63,6 @@ const files = [
 ];
 
 
-// ----------------------
-// 4. Load & merge CSV
-// ----------------------
 Promise.all(files.map(file => d3.csv(file, d3.autoType))).then(allFiles => {
 
     const rawData = allFiles.flat();
@@ -104,10 +88,6 @@ Promise.all(files.map(file => d3.csv(file, d3.autoType))).then(allFiles => {
     drawChart(data);
 });
 
-
-// ----------------------
-// 8. Draw Chart
-// ----------------------
 function drawChart(data) {
 
     const y = d3.scaleBand()
@@ -124,9 +104,6 @@ function drawChart(data) {
         .interpolator(d3.interpolateViridis);
 
 
-    // ----------------------
-    // Bars + animation
-    // ----------------------
     svg.selectAll(".bar")
         .data(data)
         .enter()
@@ -156,9 +133,6 @@ function drawChart(data) {
         .attr("width", d => x(d.goals));
 
 
-    // ----------------------
-    // Value labels (smaller text)
-    // ----------------------
     svg.selectAll(".label")
         .data(data)
         .enter()
@@ -166,21 +140,18 @@ function drawChart(data) {
         .attr("class", "label")
         .attr("y", d => y(d.player) + y.bandwidth() / 2 + 4)
         .attr("x", d => x(d.goals) + 5)
-        .style("font-size", "12px")   // ⬅ SMALLER TEXT
+        .style("font-size", "12px")   
         .text(d => d.goals)
         .style("opacity", 0)
         .transition()
         .delay(900)
         .style("opacity", 1);
 
-
-    // Axes
     svg.append("g").call(d3.axisLeft(y));
     svg.append("g")
         .attr("transform", `translate(0, ${height})`)
         .call(d3.axisBottom(x));
 
-    // Axis labels
     svg.append("text")
         .attr("x", width / 2)
         .attr("y", height + 50)
