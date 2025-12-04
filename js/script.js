@@ -1,0 +1,200 @@
+// ----------------------
+// 1. Set margins & size
+// ----------------------
+const margin = { top: 40, right: 40, bottom: 70, left: 230 };
+const width = 900 - margin.left - margin.right;
+const height = 700 - margin.top - margin.bottom;
+
+// ----------------------
+// 2. Create SVG
+// ----------------------
+const svg = d3.select("#chart")
+    .append("svg")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+    .append("g")
+    .attr("transform", `translate(${margin.left},${margin.top})`);
+
+
+// ----------------------
+// Tooltip Div (NEW)
+// ----------------------
+const tooltip = d3.select("body")
+    .append("div")
+    .style("position", "absolute")
+    .style("background", "#222")
+    .style("color", "white")
+    .style("padding", "8px 12px")
+    .style("border-radius", "6px")
+    .style("font-size", "14px")
+    .style("opacity", 0)
+    .style("pointer-events", "none");
+
+
+// ----------------------
+// 3. List ALL CSV files
+// ----------------------
+const files = [
+    "../Datasets-15-16season/liverpool2015-08-09.csv",
+    "../Datasets-15-16season/liverpool2015-08-17.csv",
+    "../Datasets-15-16season/liverpool2015-08-24.csv",
+    "../Datasets-15-16season/liverpool2015-08-29.csv",
+    "../Datasets-15-16season/liverpool2015-09-12.csv",
+    "../Datasets-15-16season/liverpool2015-09-20.csv",
+    "../Datasets-15-16season/liverpool2015-09-26.csv",
+    "../Datasets-15-16season/liverpool2015-10-04.csv",
+    "../Datasets-15-16season/liverpool2015-10-17.csv",
+    "../Datasets-15-16season/liverpool2015-10-25.csv",
+    "../Datasets-15-16season/liverpool2015-10-31.csv",
+    "../Datasets-15-16season/liverpool2015-11-08.csv",
+    "../Datasets-15-16season/liverpool2015-11-21.csv",
+    "../Datasets-15-16season/liverpool2015-11-29.csv",
+    "../Datasets-15-16season/liverpool2015-12-06.csv",
+    "../Datasets-15-16season/liverpool2015-12-13.csv",
+    "../Datasets-15-16season/liverpool2015-12-20.csv",
+    "../Datasets-15-16season/liverpool2015-12-26.csv",
+    "../Datasets-15-16season/liverpool2015-12-30.csv",
+    "../Datasets-15-16season/liverpool2016-01-02.csv",
+    "../Datasets-15-16season/liverpool2016-01-13.csv",
+    "../Datasets-15-16season/liverpool2016-01-17.csv",
+    "../Datasets-15-16season/liverpool2016-01-23.csv",
+    "../Datasets-15-16season/liverpool2016-02-02.csv",
+    "../Datasets-15-16season/liverpool2016-02-06.csv",
+    "../Datasets-15-16season/liverpool2016-02-14.csv",
+    "../Datasets-15-16season/liverpool2016-03-02.csv",
+    "../Datasets-15-16season/liverpool2016-03-06.csv",
+    "../Datasets-15-16season/liverpool2016-03-20.csv",
+    "../Datasets-15-16season/liverpool2016-04-02.csv",
+    "../Datasets-15-16season/liverpool2016-04-10.csv",
+    "../Datasets-15-16season/liverpool2016-04-17.csv",
+    "../Datasets-15-16season/liverpool2016-04-20.csv",
+    "../Datasets-15-16season/liverpool2016-04-23.csv",
+    "../Datasets-15-16season/liverpool2016-05-01.csv",
+    "../Datasets-15-16season/liverpool2016-05-08.csv",
+    "../Datasets-15-16season/liverpool2016-05-11.csv",
+    "../Datasets-15-16season/liverpool2016-05-15.csv"
+];
+
+
+// ----------------------
+// 4. Load & merge CSV
+// ----------------------
+Promise.all(files.map(file => d3.csv(file, d3.autoType))).then(allFiles => {
+
+    const rawData = allFiles.flat();
+
+    const goals = rawData.filter(d =>
+        d.type === "Shot" &&
+        d.shot_outcome === "Goal"
+    );
+
+    goals.forEach(d => {
+        d.player = d.player || "Unknown";
+    });
+
+    const goalsByPlayer = d3.rollup(
+        goals,
+        v => v.length,
+        d => d.player
+    );
+
+    const data = Array.from(goalsByPlayer, ([player, goals]) => ({ player, goals }))
+                      .sort((a, b) => d3.descending(a.goals, b.goals));
+
+    drawChart(data);
+});
+
+
+// ----------------------
+// 8. Draw Chart
+// ----------------------
+function drawChart(data) {
+
+    const y = d3.scaleBand()
+        .domain(data.map(d => d.player))
+        .range([0, height])
+        .padding(0.2);
+
+    const x = d3.scaleLinear()
+        .domain([0, d3.max(data, d => d.goals)])
+        .range([0, width]);
+
+    const color = d3.scaleSequential()
+        .domain([0, d3.max(data, d => d.goals)])
+        .interpolator(d3.interpolateViridis);
+
+
+    // ----------------------
+    // Bars + animation
+    // ----------------------
+    svg.selectAll(".bar")
+        .data(data)
+        .enter()
+        .append("rect")
+        .attr("class", "bar")
+        .attr("y", d => y(d.player))
+        .attr("height", y.bandwidth())
+        .attr("x", 0)
+        .attr("width", 0)
+        .attr("fill", d => color(d.goals))
+        .on("mouseover", function (event, d) {
+            d3.select(this).style("opacity", 0.7);
+
+            tooltip.style("opacity", 1)
+                .html(`<strong>${d.player}</strong><br>Goals: ${d.goals}`);
+        })
+        .on("mousemove", function (event) {
+            tooltip.style("left", (event.pageX + 15) + "px")
+                   .style("top", (event.pageY - 20) + "px");
+        })
+        .on("mouseout", function () {
+            d3.select(this).style("opacity", 1);
+            tooltip.style("opacity", 0);
+        })
+        .transition()
+        .duration(900)
+        .attr("width", d => x(d.goals));
+
+
+    // ----------------------
+    // Value labels (smaller text)
+    // ----------------------
+    svg.selectAll(".label")
+        .data(data)
+        .enter()
+        .append("text")
+        .attr("class", "label")
+        .attr("y", d => y(d.player) + y.bandwidth() / 2 + 4)
+        .attr("x", d => x(d.goals) + 5)
+        .style("font-size", "12px")   // ⬅ SMALLER TEXT
+        .text(d => d.goals)
+        .style("opacity", 0)
+        .transition()
+        .delay(900)
+        .style("opacity", 1);
+
+
+    // Axes
+    svg.append("g").call(d3.axisLeft(y));
+    svg.append("g")
+        .attr("transform", `translate(0, ${height})`)
+        .call(d3.axisBottom(x));
+
+    // Axis labels
+    svg.append("text")
+        .attr("x", width / 2)
+        .attr("y", height + 50)
+        .attr("text-anchor", "middle")
+        .style("font-size", "16px")
+        .style("font-weight", "600")
+        .text("Total Goals");
+
+    svg.append("text")
+        .attr("transform", "rotate(-90)")
+        .attr("x", -height / 2)
+        .attr("y", -180)
+        .attr("text-anchor", "middle")
+        .style("font-size", "16px")
+        .style("font-weight", "600")
+        .text("Player Name");
+}
